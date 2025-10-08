@@ -81,10 +81,10 @@ public class TestBenchColor {
         // method 1
         // Purple = high red + high blue, low green
         // Green = high green, lower red and blue
-        boolean isPurple = (r + b > g * 1.5)
-                && (r + b > 70);
-        boolean isGreen = (g > r * 1.3)
-                && (g > b * 1.3)
+        boolean isPurple = (r + b > g * 1.6)
+                && (r + b > 60);
+        boolean isGreen = (g > r * 1.4)
+                && (g > b * 1.1)
                 && (g > 40);
 
         DetectedColor detected1 = DetectedColor.UNKNOWN;

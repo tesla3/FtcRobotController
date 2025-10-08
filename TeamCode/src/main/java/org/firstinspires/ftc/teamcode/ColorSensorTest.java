@@ -19,30 +19,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-class SensorDetected{
-    long counter;
-    TestBenchColor.DetectedColor detected;
-
-    public SensorDetected(long _counter, TestBenchColor.DetectedColor _detected){
-        counter = _counter;
-        detected = _detected;
-    }
-    @Override
-    public String toString(){
-        return String.format("%05d:", counter) + detected + ",";
-    }
-
-    @Override
-    public boolean equals(Object o){
-        SensorDetected _o = (SensorDetected) o;
-        return detected == _o.detected;
-    }
-
-    @Override
-    public int hashCode(){
-        return detected.ordinal();
-    }
-}
 
 class BoundedFifoBuffer<T> {
     private final ArrayDeque<T> deque;
@@ -56,23 +32,21 @@ class BoundedFifoBuffer<T> {
     public void clear(){
         deque.clear();
     }
+
+    public T peekLast(){
+        return deque.peekLast();
+    }
+    public T peekFirst() { return deque.peekFirst(); }
+
+    public Iterator<T> iterator() {
+        return deque.iterator();  // Iterates oldest to newest
+    }
+
     public void add(T element) {
         if (deque.size() >= maxSize) {
             deque.removeFirst();  // Auto-free oldest
         }
         deque.addLast(element);
-    }
-
-    public T peekLast(){
-        return deque.peekLast();
-    }
-    public T getOldest() { return deque.peekFirst(); }
-    public T getNewest() { return deque.peekLast(); }
-    public int size() { return deque.size(); }
-
-
-    public Iterator<T> iterator() {
-        return deque.iterator();  // Iterates oldest to newest
     }
 
     // Majority vote on last N elements
@@ -118,18 +92,18 @@ public class ColorSensorTest extends OpMode {
     private static final double POLL_INTERVAL_MS = 15; //ms
 
     private long counter = 0;
-    private BoundedFifoBuffer<SensorDetected> buffer = new BoundedFifoBuffer<SensorDetected>(20);
+    private BoundedFifoBuffer<TestBenchColor.DetectedColor> buffer = new BoundedFifoBuffer<TestBenchColor.DetectedColor>(20);
 
-    private BoundedFifoBuffer<SensorDetected> m_buffer = new BoundedFifoBuffer<SensorDetected>(20);
+    private BoundedFifoBuffer<TestBenchColor.DetectedColor> m_buffer = new BoundedFifoBuffer<>(20);
 
     private void updateTelemetry(){
         telemetry.clearAll();
-        Iterator<SensorDetected> it = buffer.iterator();
-        Iterator<SensorDetected> it_m = m_buffer.iterator();
+        Iterator<TestBenchColor.DetectedColor> it = buffer.iterator();
+        Iterator<TestBenchColor.DetectedColor> it_m = m_buffer.iterator();
 
         while (it.hasNext()){
-            SensorDetected d = it.next();
-            SensorDetected d_m = it_m.next();
+            TestBenchColor.DetectedColor d = it.next();
+            TestBenchColor.DetectedColor d_m = it_m.next();
             telemetry.addData("detection", d.toString()  + ":" + d_m.toString());
         }
 
@@ -138,14 +112,13 @@ public class ColorSensorTest extends OpMode {
     public void init(){
         bench.init(hardwareMap);
         colorSensorTimer.reset();
-        counter = 0;
         buffer.clear();
         m_buffer.clear();
 
-        SensorDetected _init = new SensorDetected(0, TestBenchColor.DetectedColor.UNKNOWN);
+        TestBenchColor.DetectedColor _init =TestBenchColor.DetectedColor.UNKNOWN;
 
         buffer.add(_init);
-        SensorDetected majority = buffer.getMajorityVote(5);
+        TestBenchColor.DetectedColor majority = buffer.getMajorityVote(7);
         m_buffer.add(majority);
     }
 
@@ -154,18 +127,13 @@ public class ColorSensorTest extends OpMode {
         if (colorSensorTimer.milliseconds() > POLL_INTERVAL_MS) {
             TestBenchColor.DetectedColor detected = bench.getDetectedColor(telemetry);
 
-            SensorDetected _new = new SensorDetected(counter, detected);
-            boolean d_changed = _new.detected != buffer.peekLast().detected;
-            buffer.add(_new);
-
-            SensorDetected majority = buffer.getMajorityVote(7);
-            boolean d_m_changed = majority.detected != m_buffer.peekLast().detected;
-
+            boolean d_changed = detected != buffer.peekLast();
+            buffer.add(detected);
+            TestBenchColor.DetectedColor majority = buffer.getMajorityVote(7);
             m_buffer.add(majority);
-            if (d_changed || d_m_changed) {
-                updateTelemetry();
-            }
-            counter++;
+
+            if (d_changed) {updateTelemetry(); }
+
         }
     }
 }
